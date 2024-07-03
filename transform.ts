@@ -14,13 +14,13 @@ import {
 const transform = (fileInfo: FileInfo, api: API) => {
   const j: JSCodeshift = api.jscodeshift;
 
-  // Collect all React.* usages and types
+  // React.* のメソッドと型を格納するセット
   const reactMethods = new Set<string>();
   const reactTypes = new Set<string>();
 
   const root = j(fileInfo.source);
 
-  // Find all React.* expressions
+  // React.* のメソッドを見つける（React.useStateなど）
   root
     .find<MemberExpression>(j.MemberExpression, {
       object: { name: 'React' },
@@ -32,7 +32,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
       }
     });
 
-  // Find all React.* type references
+  // React.* の型参照を見つける（React.ReactElementなど）
   root
     .find<TSTypeReference>(j.TSTypeReference, {
       typeName: {
@@ -50,7 +50,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
       }
     });
 
-  // Find all React.* JSX elements
+  // JSX 内の React.* メソッドを見つける（ <React.Fragment> など）
   root
     .find<JSXMemberExpression>(j.JSXMemberExpression, {
       object: { name: 'React' },
@@ -62,7 +62,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
       }
     });
 
-  // Remove existing import React from 'react' and import * as React from 'react'
+  // 既存の import React from 'react' と import * as React from 'react' を削除する
   root
     .find<ImportDeclaration>(j.ImportDeclaration, {
       source: { value: 'react' },
@@ -84,7 +84,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
       }
     });
 
-  // Create a single import declaration for all React methods
+  // 全ての React メソッドに対する1つのインポート宣言を作成する
   if (reactMethods.size > 0) {
     const importDeclaration = j.importDeclaration(
       Array.from(reactMethods).map((method) =>
@@ -95,7 +95,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
     root.get().node.program.body.unshift(importDeclaration);
   }
 
-  // Create a single import type declaration for all React types
+  // 全ての React 型に対する1つのインポート型宣言を作成する
   if (reactTypes.size > 0) {
     const importTypeDeclaration = j.importDeclaration(
       Array.from(reactTypes).map((type) =>
@@ -107,7 +107,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
     root.get().node.program.body.unshift(importTypeDeclaration);
   }
 
-  // Replace React.method() with method()
+  // React.method() を method() に置き換える
   root
     .find<MemberExpression>(j.MemberExpression, {
       object: { name: 'React' },
@@ -119,7 +119,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
       }
     });
 
-  // Replace React.Type with Type, keeping the type parameters
+  // React.Type を Type に置き換える
   root
     .find<TSTypeReference>(j.TSTypeReference, {
       typeName: {
@@ -143,7 +143,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
       }
     });
 
-  // Handle generic type arguments with React.* inside them
+  // React.* が含まれるジェネリック型引数を処理する
   root.find<TSTypeReference>(j.TSTypeReference).forEach((path) => {
     if (path.value.typeParameters) {
       j(path.value.typeParameters.params).forEach((param) => {
@@ -165,7 +165,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
     }
   });
 
-  // Replace <React.Element> with <Element>
+  // JSX 内の <React.Element> を <React.Element> に置き換える（ <React.Fragment> など）
   root
     .find<JSXMemberExpression>(j.JSXMemberExpression, {
       object: { name: 'React' },
@@ -180,7 +180,7 @@ const transform = (fileInfo: FileInfo, api: API) => {
       }
     });
 
-  // Replace interface Props extends React.Type with interface Props extends Type
+  // interface Props extends React.Type を interface Props extends Type に置き換える
   root
     .find<TSInterfaceDeclaration>(j.TSInterfaceDeclaration)
     .forEach((path) => {
